@@ -1,0 +1,48 @@
+1. SELECT artist_mb, scrobbles_lastfm FROM hue__tmp_artists
+ORDER BY scrobbles_lastfm DESC
+LIMIT 1
+
+result: The Beatles, 517126254
+
+2. SELECT tags, count(tags) as cnt_tags
+FROM hue__tmp_artists LATERAL VIEW explode(split(tags_lastfm, ';')) tags_lastfm as tags
+GROUP BY tags
+HAVING tags > ''
+ORDER BY cnt_tags DESC
+LIMIT 1
+
+result:  seen live, 81278
+
+3. with top_tags as (
+    SELECT tags, count(tags) as cnt_tags
+    FROM hue__tmp_artists LATERAL VIEW explode(split(tags_lastfm, ';')) tags_lastfm AS tags
+    GROUP BY tags
+    HAVING tags > ''
+    ORDER BY cnt_tags DESC
+    LIMIT 10
+),
+artist_tags as (
+    SELECT tags, artist_lastfm, listeners_lastfm
+    FROM hue__tmp_artists LATERAL VIEW explode(split(tags_lastfm, ';')) tags_lastfm AS tags
+),
+tags_listeners as (
+    SELECT artist_tags.artist_lastfm, top_tags.tags, artist_tags.listeners_lastfm
+    FROM artist_tags
+    JOIN top_tags ON artist_tags.tags = top_tags.tags
+    ORDER BY artist_tags.listeners_lastfm desc
+)
+
+SELECT DISTINCT first_value(artist_lastfm) over (partition by tags order by listeners_lastfm desc) as f_val, tags
+FROM tags_listeners
+
+result: 
+Coldplay, alternative
+Coldplay, electronic
+Coldplay, indie
+Coldplay, pop
+Coldplay, seen live
+Diddy - Dirty Money, under 2000 listeners
+Jason Derülo, All
+Radiohead, experimental
+Radiohead, rock
+Rihanna, female vocalists
